@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#14312B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Caixa &amp; Comissão</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%BE%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#16211C;
+    --paper:#EFE7D8;
+    --paper-2:#E4D9C4;
+    --paper-3:#F7F2E6;
+    --ledger:#14312B;
+    --ledger-2:#1E4438;
+    --ledger-3:#0D2019;
+    --brass:#B08D3E;
+    --brass-light:#D8B968;
+    --brick:#A83232;
+    --brick-light:#C24949;
+    --ok:#4C7A5E;
+    --line: rgba(22,33,28,0.14);
+    --line-strong: rgba(22,33,28,0.28);
+    --shadow: 0 8px 24px rgba(13,32,25,0.18);
+    --radius: 14px;
+    --font-display:'Zilla Slab', Georgia, serif;
+    --font-body:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono:'IBM Plex Mono', 'Courier New', monospace;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+    user-select:none;
+  }
+  input, textarea{ user-select:text; }
+  button{ font-family:inherit; cursor:pointer; }
+  .hidden{ display:none !important; }
+  h1,h2,h3{ font-family:var(--font-display); margin:0; color:var(--ledger-3); }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line-strong); border-radius:8px; }
+
+  /* ===== LOCK SCREEN ===== */
+  #lock-screen{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(circle at 50% 0%, var(--ledger-2), var(--ledger) 55%, var(--ledger-3) 100%);
+    display:flex; align-items:center; justify-content:center;
+    z-index:200; padding:24px;
+  }
+  .lock-card{ width:100%; max-width:380px; text-align:center; color:var(--paper-3); }
+  .lock-emblem{
+    width:64px; height:64px; margin:0 auto 18px;
+    border:2px solid var(--brass-light); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; color:var(--brass-light);
+  }
+  .lock-card h1{ color:var(--paper-3); font-size:26px; letter-spacing:.02em; }
+  .lock-sub{ margin:6px 0 28px; opacity:.72; font-size:14px; letter-spacing:.03em; }
+  .dots{ display:flex; gap:16px; justify-content:center; margin-bottom:30px; transition:transform .1s; }
+  .dots .dot{ width:16px; height:16px; border-radius:50%; border:2px solid var(--brass-light); background:transparent; transition:background .15s; }
+  .dots .dot.filled{ background:var(--brass-light); }
+  .dots.error .dot{ border-color:var(--brick-light); background:var(--brick-light); }
+  .dots.shake{ animation:shake .45s; }
+  @keyframes shake{
+    10%,90%{ transform:translateX(-2px); } 20%,80%{ transform:translateX(4px); }
+    30%,50%,70%{ transform:translateX(-8px); } 40%,60%{ transform:translateX(8px); }
+  }
+  .padgrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:300px; margin:0 auto; }
+  .padgrid button{
+    aspect-ratio:1; border-radius:50%; background:rgba(247,242,230,0.06);
+    border:1px solid rgba(247,242,230,0.18); color:var(--paper-3);
+    font-family:var(--font-mono); font-size:24px; font-weight:500;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .padgrid button:active{ background:rgba(216,185,104,0.28); }
+  .padgrid button.ghost{ background:transparent; border-color:transparent; color:rgba(247,242,230,0.55); font-size:15px; }
+
+  /* ===== APP SHELL ===== */
+  #app{ height:100%; display:flex; flex-direction:column; }
+  .topbar{
+    background:var(--ledger); color:var(--paper-3); padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between; box-shadow:var(--shadow); z-index:10;
+  }
+  .topbar .brand{ display:flex; align-items:center; gap:10px; }
+  .topbar .brand-mark{
+    width:34px; height:34px; border-radius:8px; background:var(--brass); color:var(--ledger-3);
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:16px;
+  }
+  .topbar h1{ color:var(--paper-3); font-size:19px; }
+  .topbar .date{ font-family:var(--font-mono); font-size:12px; opacity:.7; margin-top:1px; }
+  .icon-btn{
+    background:rgba(247,242,230,0.08); border:1px solid rgba(247,242,230,0.18);
+    color:var(--paper-3); border-radius:10px; width:40px; height:40px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:active{ background:rgba(247,242,230,0.18); }
+
+  main{ flex:1; overflow-y:auto; padding:18px 18px 100px; max-width:900px; width:100%; margin:0 auto; }
+  .view{ animation:fadein .18s ease; }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .section-title{ display:flex; align-items:baseline; justify-content:space-between; margin:4px 0 14px; }
+  .section-title h2{ font-size:20px; }
+  .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ledger-2); opacity:.7; }
+
+  .bottomnav{
+    position:fixed; left:0; right:0; bottom:0; background:var(--ledger-3);
+    display:flex; box-shadow:0 -6px 20px rgba(0,0,0,0.25); padding-bottom:env(safe-area-inset-bottom); z-index:20;
+  }
+  .navbtn{
+    flex:1; background:transparent; border:none; color:rgba(247,242,230,0.55);
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:11px 4px 9px; font-size:11px; letter-spacing:.02em; position:relative;
+  }
+  .navbtn svg{ width:22px; height:22px; }
+  .navbtn.active{ color:var(--brass-light); }
+  .navbtn.active::before{
+    content:""; position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:28px; height:3px; background:var(--brass-light); border-radius:0 0 4px 4px;
+  }
+
+  /* ===== CARDS / GENERIC ===== */
+  .card{ background:var(--paper-3); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .empty-state{ text-align:center; padding:40px 20px; color:var(--ledger-2); opacity:.75; }
+  .empty-state svg{ width:40px; height:40px; margin-bottom:10px; opacity:.6; }
+  .btn{ border:none; border-radius:10px; padding:12px 18px; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:8px; justify-content:center; }
+  .btn-primary{ background:var(--brass); color:var(--ledger-3); }
+  .btn-primary:active{ background:var(--brass-light); }
+  .btn-ledger{ background:var(--ledger); color:var(--paper-3); }
+  .btn-ledger:active{ background:var(--ledger-2); }
+  .btn-ghost{ background:transparent; color:var(--ledger); border:1px solid var(--line-strong); }
+  .btn-danger{ background:transparent; color:var(--brick); border:1px solid rgba(168,50,50,0.35); }
+  .btn-block{ width:100%; }
+  .btn:disabled{ opacity:.4; }
+
+  /* ===== LANÇAR VIEW ===== */
+  .chiprow{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px; flex-wrap:wrap; }
+  .chip{
+    flex:0 0 auto; background:var(--paper-3); border:1px solid var(--line-strong);
+    border-radius:999px; padding:9px 16px; font-size:14px; font-weight:600; color:var(--ledger); white-space:nowrap;
+  }
+  .chip.active{ background:var(--ledger); color:var(--paper-3); border-color:var(--ledger); }
+
+  .total-display{ text-align:center; background:var(--ledger); color:var(--paper-3); border-radius:var(--radius); padding:20px 16px 18px; margin-bottom:16px; }
+  .total-display .eyebrow{ color:var(--brass-light); opacity:.9; }
+  .total-display .amount{ font-family:var(--font-mono); font-size:36px; font-weight:600; margin-top:4px; letter-spacing:.01em; }
+
+  .keypad-display{
+    font-family:var(--font-mono); font-size:32px; font-weight:600; text-align:right;
+    background:var(--paper-3); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:12px; color:var(--ledger-3);
+  }
+  .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .keypad button{
+    background:var(--paper-3); border:1px solid var(--line); border-radius:12px;
+    font-family:var(--font-mono); font-size:22px; font-weight:600; color:var(--ledger-3); padding:16px 0;
+  }
+  .keypad button:active{ background:var(--paper-2); }
+  .keypad button.op{ color:var(--brick); }
+
+  .entry-list{ margin-top:6px; }
+  .entry-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 4px; border-bottom:1px solid var(--line); gap:8px; }
+  .entry-row:last-child{ border-bottom:none; }
+  .entry-row .meta{ display:flex; align-items:flex-start; gap:2px; }
+  .entry-row .meta .toprow{ display:flex; align-items:center; gap:10px; }
+  .entry-row .time{ font-family:var(--font-mono); font-size:12px; color:var(--ledger-2); opacity:.7; width:44px; }
+  .entry-row .svc-note{ font-size:11px; color:var(--ledger-2); opacity:.7; margin-top:2px; }
+  .entry-row .amt{ font-family:var(--font-mono); font-size:16px; font-weight:600; white-space:nowrap; }
+  .entry-row .actions{ display:flex; gap:6px; }
+  .row-icon-btn{ width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); display:flex; align-items:center; justify-content:center; color:var(--ledger-2); flex:0 0 auto; }
+  .row-icon-btn.danger{ color:var(--brick); border-color:rgba(168,50,50,0.3); }
+  .lock-tag{ display:flex; align-items:center; gap:5px; font-size:11px; color:var(--ledger-2); opacity:.65; }
+  .lock-tag svg{ width:13px; height:13px; }
+
+  /* ===== FECHAR VIEW ===== */
+  .close-card{ display:flex; align-items:center; justify-content:space-between; }
+  .close-card .name{ font-weight:700; font-size:15px; }
+  .close-card .sub{ font-family:var(--font-mono); font-size:12px; color:var(--ledger-2); opacity:.75; margin-top:2px; }
+  .close-card .sum{ font-family:var(--font-mono); font-size:19px; font-weight:700; color:var(--ledger); margin-right:12px; }
+
+  .mini-receipt{ display:flex; align-items:center; justify-content:space-between; background:var(--paper-3); border:1px dashed var(--line-strong); border-radius:10px; padding:12px 14px; margin-bottom:10px; gap:10px; }
+  .mini-receipt .name{ font-weight:600; font-size:14px; }
+  .mini-receipt .figs{ font-family:var(--font-mono); font-size:12px; color:var(--ledger-2); opacity:.8; margin-top:2px; }
+
+  /* ===== HISTORICO VIEW ===== */
+  .stat-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; }
+  .stat-box{ background:var(--ledger); color:var(--paper-3); border-radius:12px; padding:14px 14px 12px; }
+  .stat-box .num{ font-family:var(--font-mono); font-size:20px; font-weight:700; }
+  .stat-box .lbl{ font-size:11px; opacity:.72; margin-top:2px; letter-spacing:.02em; }
+  .stat-box.brass{ background:var(--brass); color:var(--ledger-3); }
+
+  .month-card{ overflow:hidden; }
+  .month-head{ display:flex; align-items:center; justify-content:space-between; }
+  .month-head h3{ font-size:17px; }
+  .month-head .arrow{ transition:transform .18s; color:var(--ledger-2); }
+  .month-head .arrow.open{ transform:rotate(90deg); }
+  .month-totals{ display:flex; gap:16px; margin-top:8px; font-family:var(--font-mono); font-size:12px; flex-wrap:wrap; }
+  .month-totals span b{ display:block; font-size:14px; color:var(--ledger); }
+  .month-body{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .day-group{ margin-bottom:10px; }
+  .day-group .day-label{ font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--ledger-2); margin-bottom:6px; }
+
+  /* ===== FUNCIONARIOS VIEW ===== */
+  .emp-row{ display:flex; align-items:center; justify-content:space-between; padding:13px 4px; border-bottom:1px solid var(--line); gap:8px; }
+  .emp-row:last-child{ border-bottom:none; }
+  .emp-row .name{ font-weight:700; font-size:15px; }
+  .emp-row .pct{ font-family:var(--font-mono); font-size:12px; color:var(--ledger-2); opacity:.8; margin-top:2px; }
+  .emp-row .right{ display:flex; align-items:center; gap:10px; }
+  .switch{ width:42px; height:24px; border-radius:999px; background:var(--line-strong); position:relative; border:none; flex:0 0 auto; }
+  .switch::after{ content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .15s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .switch.on{ background:var(--ok); }
+  .switch.on::after{ left:20px; }
+  .emp-row.inactive{ opacity:.5; }
+
+  /* ===== FORM FIELDS / MODALS ===== */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(13,32,25,0.55); display:flex; align-items:flex-end; justify-content:center; z-index:100; padding:0; }
+  .modal-sheet{
+    background:var(--paper-3); width:100%; max-width:480px; border-radius:20px 20px 0 0;
+    padding:22px 20px calc(20px + env(safe-area-inset-bottom)); max-height:88vh; overflow-y:auto; animation:slideup .22s ease;
+  }
+  @keyframes slideup{ from{ transform:translateY(24px); opacity:.4; } to{ transform:none; opacity:1; } }
+  .modal-title{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .modal-title h3{ font-size:18px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; color:var(--ledger-2); margin-bottom:6px; font-weight:600; letter-spacing:.02em; }
+  .field input[type=text], .field input[type=number], .field input[type=date], .field select{
+    width:100%; padding:13px 14px; border:1px solid var(--line-strong); border-radius:10px;
+    font-family:var(--font-mono); font-size:16px; background:#fff; color:var(--ink);
+  }
+  .field select{ font-family:var(--font-body); font-size:15px; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; margin-bottom:14px; }
+  .calc-row{ display:flex; justify-content:space-between; padding:8px 0; font-size:14px; }
+  .calc-row.total{ border-top:1px solid var(--line); margin-top:4px; padding-top:12px; font-weight:700; font-size:16px; }
+  .calc-row .v{ font-family:var(--font-mono); font-weight:600; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
+  .modal-actions .btn{ flex:1; }
+
+  .service-row{ display:flex; gap:8px; margin-bottom:8px; align-items:center; }
+  .svc-name{ flex:7 1 0%; min-width:0; width:0; padding:10px 12px; border:1px solid var(--line-strong); border-radius:8px; font-size:14px; font-family:var(--font-body); background:#fff; color:var(--ink); }
+  .svc-value{ flex:3 1 0%; min-width:0; width:0; padding:10px 8px; border:1px solid var(--line-strong); border-radius:8px; font-size:13px; font-family:var(--font-mono); background:#fff; color:var(--ink); text-align:right; }
+
+  /* password modal reuses dot pad, dark variant */
+  .pw-modal .modal-sheet{ background:var(--ledger); }
+  .pw-modal h3, .pw-modal .pw-sub{ color:var(--paper-3); }
+  .pw-modal .pw-sub{ opacity:.7; font-size:13px; margin-top:-8px; margin-bottom:18px; }
+  .pw-modal .dots{ margin-bottom:22px; }
+  .pw-modal .padgrid button{ background:rgba(247,242,230,0.06); border-color:rgba(247,242,230,0.18); }
+
+  /* ===== RECEIPT (signature element) ===== */
+  .receipt-wrap{ display:flex; justify-content:center; padding:6px 0 4px; }
+  .receipt{ width:100%; max-width:320px; background:var(--paper-3); color:var(--ledger-3); font-family:var(--font-mono); box-shadow:0 10px 26px rgba(13,32,25,0.28); padding:0 0 4px; }
+  .receipt .perf{ height:9px; background-image: radial-gradient(circle at 6px 5px, var(--ledger) 5px, transparent 5.5px); background-size:12px 10px; background-repeat:repeat-x; background-position:center; }
+  .receipt .perf.bottom{ transform:scaleY(-1); }
+  .receipt-body{ padding:18px 20px 6px; }
+  .receipt-body .r-head{ text-align:center; margin-bottom:12px; }
+  .receipt-body .r-head .store{ font-family:var(--font-display); font-weight:700; font-size:16px; letter-spacing:.02em; }
+  .receipt-body .r-head .sub{ font-size:11px; opacity:.65; margin-top:2px; }
+  .receipt-body .rline{ display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:4px 0; }
+  .receipt-body .rline.dashed{ border-top:1px dashed var(--line-strong); margin-top:6px; padding-top:8px; }
+  .receipt-body .rline b{ font-size:13px; }
+  .receipt-body .rline span.right{ text-align:right; max-width:60%; }
+  .receipt-body .rtotal{ display:flex; justify-content:space-between; border-top:1px dashed var(--line-strong); margin-top:8px; padding-top:8px; font-size:15px; font-weight:700; }
+  .barcode{ height:32px; margin:14px 2px 4px; background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 5px, var(--ink) 5px 6px, transparent 6px 10px, var(--ink) 10px 13px, transparent 13px 17px, var(--ink) 17px 18px, transparent 18px 22px); }
+  .stamp{ display:inline-block; border:2px solid var(--ok); color:var(--ok); font-family:var(--font-display); font-weight:700; font-size:11px; letter-spacing:.08em; padding:3px 10px; border-radius:6px; transform:rotate(-4deg); margin-top:6px; }
+
+  /* ===== TOAST ===== */
+  #toast{
+    position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(20px);
+    background:var(--ledger-3); color:var(--paper-3); padding:11px 18px; border-radius:10px;
+    font-size:13px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:all .2s; z-index:300;
+    max-width:80vw; text-align:center;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (min-width:720px){
+    .padgrid{ max-width:340px; }
+    .keypad button{ padding:20px 0; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- LOCK SCREEN -->
+  <div id="lock-screen">
+    <div class="lock-card">
+      <div class="lock-emblem">
+        <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M6 10V8a6 6 0 1112 0v2" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor"/></svg>
+      </div>
+      <h1>Caixa &amp; Comissão</h1>
+      <div class="lock-sub">Digite a senha do proprietário</div>
+      <div class="dots" id="lock-dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+      <div class="padgrid" id="lock-pad">
+        <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+        <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+        <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+        <button class="ghost" data-action="clear">limpar</button>
+        <button data-d="0">0</button>
+        <button class="ghost" data-action="back">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP SHELL -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">R$</div>
+        <div>
+          <h1>Caixa &amp; Comissão</h1>
+          <div class="date" id="topbar-date">—</div>
+        </div>
+      </div>
+      <button class="icon-btn" id="btn-lock-app" title="Bloquear">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 10V8a6 6 0 1112 0v2" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/></svg>
+      </button>
+    </header>
+
+    <main>
+      <!-- LANÇAR -->
+      <section class="view" id="view-lancar">
+        <div class="section-title"><h2>Lançar valor</h2><span class="eyebrow">Bruto do dia</span></div>
+        <div class="chiprow" id="lancar-chips"></div>
+        <div id="lancar-empty-state" class="empty-state hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          <div>Cadastre um funcionário para começar a lançar valores.</div>
+          <div style="margin-top:12px;"><button class="btn btn-primary" data-goto="funcionarios">Cadastrar funcionário</button></div>
+        </div>
+        <div id="lancar-content" class="hidden">
+          <div id="service-chips-wrap" class="hidden" style="margin-bottom:14px;">
+            <div class="eyebrow" style="margin-bottom:8px;">Serviços (opcional · toque para selecionar)</div>
+            <div class="chiprow" id="service-chips" style="margin-bottom:0;"></div>
+          </div>
+          <div class="total-display">
+            <div class="eyebrow">Pendente hoje · <span id="lancar-emp-name">—</span></div>
+            <div class="amount" id="lancar-total">R$ 0,00</div>
+          </div>
+          <div class="keypad-display" id="keypad-display">R$ 0,00</div>
+          <div class="keypad" id="keypad">
+            <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+            <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+            <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+            <button class="op" data-action="clear">C</button><button data-d="0">0</button><button class="op" data-action="back">⌫</button>
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-add-entry">Adicionar lançamento</button>
+          <div class="card entry-list" id="entry-list-card" style="margin-top:16px;">
+            <div class="eyebrow" style="margin-bottom:8px;">Lançamentos de hoje</div>
+            <div id="entry-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FECHAR -->
+      <section class="view hidden" id="view-fechar">
+        <div class="section-title"><h2>Fechar o dia</h2><span class="eyebrow" id="fechar-date">—</span></div>
+        <div id="fechar-pending"></div>
+        <div id="fechar-closed-wrap" class="hidden" style="margin-top:22px;">
+          <div class="eyebrow" style="margin-bottom:10px;">Fechamentos de hoje</div>
+          <div id="fechar-closed"></div>
+        </div>
+      </section>
+
+      <!-- HISTÓRICO -->
+      <section class="view hidden" id="view-historico">
+        <div class="section-title"><h2>Histórico</h2><span class="eyebrow">Dashboard</span></div>
+        <div class="stat-grid" id="hist-stats"></div>
+        <div id="hist-months"></div>
+
+        <div class="card" style="margin-top:18px;">
+          <div class="eyebrow" style="margin-bottom:12px;">Relatórios em PDF</div>
+          <div class="field">
+            <label>Tipo de relatório</label>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn btn-ghost" id="rep-type-owner" style="flex:1;">Proprietário</button>
+              <button type="button" class="btn btn-ghost" id="rep-type-emp" style="flex:1;">Funcionário</button>
+            </div>
+          </div>
+          <div class="field hidden" id="rep-emp-field">
+            <label>Funcionário</label>
+            <select id="rep-emp-select"></select>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>De</label><input type="date" id="rep-date-from"></div>
+            <div class="field"><label>Até</label><input type="date" id="rep-date-to"></div>
+          </div>
+          <button class="btn btn-primary btn-block" id="rep-generate">Gerar e compartilhar PDF</button>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:10px;">Segurança</div>
+          <button class="btn btn-ghost btn-block" id="btn-change-password">Alterar senha do proprietário</button>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:10px;">Backup dos dados</div>
+          <button class="btn btn-ghost btn-block" id="btn-export">Exportar backup (.json)</button>
+          <button class="btn btn-ghost btn-block" id="btn-import" style="margin-top:8px;">Importar backup (.json)</button>
+          <input type="file" id="file-import" accept="application/json" class="hidden">
+        </div>
+      </section>
+
+      <!-- FUNCIONÁRIOS -->
+      <section class="view hidden" id="view-funcionarios">
+        <div class="section-title"><h2>Funcionários</h2><span class="eyebrow" id="func-count">0 ativos</span></div>
+        <div class="card" id="func-list-card"><div id="func-list"></div></div>
+        <button class="btn btn-primary btn-block" id="btn-add-employee">+ Adicionar funcionário</button>
+      </section>
+    </main>
+
+    <nav class="bottomnav">
+      <button class="navbtn active" data-view="lancar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M16 15h0M8 19h2M12 19h2"/></svg>
+        Lançar
+      </button>
+      <button class="navbtn" data-view="fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        Fechar
+      </button>
+      <button class="navbtn" data-view="historico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
+        Histórico
+      </button>
+      <button class="navbtn" data-view="funcionarios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Equipe
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL: senha -->
+  <div class="modal-overlay pw-modal hidden" id="modal-password">
+    <div class="modal-sheet" style="border-radius:20px; max-width:340px; text-align:center;">
+      <h3 id="pw-title">Senha do proprietário</h3>
+      <div class="pw-sub" id="pw-sub">Necessária para confirmar esta ação</div>
+      <div class="dots" id="pw-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="padgrid" id="pw-pad">
+        <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+        <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+        <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+        <button class="ghost" data-action="cancel">cancelar</button>
+        <button data-d="0">0</button>
+        <button class="ghost" data-action="back">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: trocar senha -->
+  <div class="modal-overlay pw-modal hidden" id="modal-change-password">
+    <div class="modal-sheet" style="border-radius:20px; max-width:340px; text-align:center;">
+      <h3 id="cp-title">Nova senha</h3>
+      <div class="pw-sub" id="cp-sub">Digite os 4 novos números</div>
+      <div class="dots" id="cp-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="padgrid" id="cp-pad">
+        <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+        <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+        <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+        <button class="ghost" data-action="cancel">cancelar</button>
+        <button data-d="0">0</button>
+        <button class="ghost" data-action="back">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: fechar funcionário -->
+  <div class="modal-overlay hidden" id="modal-fechar">
+    <div class="modal-sheet">
+      <div class="modal-title"><h3 id="mf-title">Fechar dia</h3><button class="icon-btn" data-close="modal-fechar" style="color:var(--ink);border-color:var(--line);">✕</button></div>
+      <div class="calc-row"><span>Entrada bruta</span><span class="v" id="mf-bruto">R$ 0,00</span></div>
+      <div class="field">
+        <label>% de comissão</label>
+        <input type="number" id="mf-pct" min="0" max="100" step="0.5">
+      </div>
+      <div class="calc-row"><span>Repasse comissão</span><span class="v" id="mf-repasse">R$ 0,00</span></div>
+      <div class="calc-row total"><span>Proprietário</span><span class="v" id="mf-proprietario">R$ 0,00</span></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close="modal-fechar">Cancelar</button>
+        <button class="btn btn-primary" id="mf-confirm">Confirmar fechamento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: recibo -->
+  <div class="modal-overlay hidden" id="modal-receipt">
+    <div class="modal-sheet" style="background:transparent; box-shadow:none; padding-top:10px;">
+      <div class="receipt-wrap"><div class="receipt" id="receipt-target"></div></div>
+      <div class="modal-actions" style="max-width:320px; margin:14px auto 0;">
+        <button class="btn btn-ledger btn-block" data-close="modal-receipt">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: editar lançamento -->
+  <div class="modal-overlay hidden" id="modal-edit-entry">
+    <div class="modal-sheet">
+      <div class="modal-title"><h3>Editar lançamento</h3><button class="icon-btn" data-close="modal-edit-entry" style="color:var(--ink);border-color:var(--line);">✕</button></div>
+      <div class="field"><label>Valor (R$)</label><input type="text" inputmode="decimal" id="ee-value" placeholder="0,00"></div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="ee-delete">Excluir</button>
+        <button class="btn btn-primary" id="ee-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: adicionar/editar funcionário -->
+  <div class="modal-overlay hidden" id="modal-add-employee">
+    <div class="modal-sheet">
+      <div class="modal-title"><h3 id="ae-title">Novo funcionário</h3><button class="icon-btn" data-close="modal-add-employee" style="color:var(--ink);border-color:var(--line);">✕</button></div>
+      <div class="field"><label>Nome</label><input type="text" id="ae-name" placeholder="Nome do funcionário"></div>
+      <div class="field"><label>% de comissão padrão</label><input type="number" id="ae-pct" min="0" max="100" step="0.5" placeholder="Ex: 10"></div>
+      <div class="field">
+        <label>Serviços padrão (opcional)</label>
+        <div id="ae-services-list"></div>
+        <button type="button" class="btn btn-ghost btn-block" id="ae-add-service" style="margin-top:4px;">+ Adicionar serviço</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close="modal-add-employee">Cancelar</button>
+        <button class="btn btn-primary" id="ae-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var DEFAULT_PASSWORD = "0987";
+  var STORAGE_KEY = "caixa_comissao_state_v1";
+
+  /* ---------- estado ---------- */
+  var state = loadState();
+  normalizeState();
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){ console.error("Falha ao ler dados salvos", e); }
+    return { employees: [], entries: [], fechamentos: [] };
+  }
+  function normalizeState(){
+    if(!Array.isArray(state.employees)) state.employees = [];
+    if(!Array.isArray(state.entries)) state.entries = [];
+    if(!Array.isArray(state.fechamentos)) state.fechamentos = [];
+    if(!state.password) state.password = DEFAULT_PASSWORD;
+    state.employees.forEach(function(e){ if(!Array.isArray(e.services)) e.services = []; });
+    state.entries.forEach(function(e){ if(!Array.isArray(e.services)) e.services = []; });
+    state.fechamentos.forEach(function(f){ if(!Array.isArray(f.services)) f.services = []; });
+    saveState();
+  }
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){
+      console.error("Falha ao salvar dados", e);
+      showToast("Não foi possível salvar os dados neste dispositivo.");
+    }
+  }
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  /* ---------- helpers de data/valor ---------- */
+  function pad(n){ return n.toString().padStart(2,"0"); }
+  function toDateKey(iso){ var d = new Date(iso); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function toMonthKey(iso){ var d = new Date(iso); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+  function formatDateBR(iso){ var d = new Date(iso); return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear(); }
+  function formatTimeBR(iso){ var d = new Date(iso); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  var MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  function formatMonthLabel(monthKey){ var p = monthKey.split("-"); return MONTH_NAMES[parseInt(p[1],10)-1] + " de " + p[0]; }
+  function formatWeekdayLong(iso){
+    var d = new Date(iso);
+    var wd = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"][d.getDay()];
+    return wd + ", " + formatDateBR(iso);
+  }
+  function formatCurrency(n){ return (n||0).toLocaleString("pt-BR", { style:"currency", currency:"BRL" }); }
+  function todayKey(){ return toDateKey(new Date().toISOString()); }
+
+  /* ---------- toast ---------- */
+  var toastEl = document.getElementById("toast");
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------- navegação por telas ---------- */
+  var views = ["lancar","fechar","historico","funcionarios"];
+  function goto(view){
+    views.forEach(function(v){
+      document.getElementById("view-"+v).classList.toggle("hidden", v!==view);
+    });
+    document.querySelectorAll(".navbtn").forEach(function(btn){
+      btn.classList.toggle("active", btn.getAttribute("data-view")===view);
+    });
+    if(view==="lancar") renderLancar();
+    if(view==="fechar") renderFechar();
+    if(view==="historico") renderHistorico();
+    if(view==="funcionarios") renderFuncionarios();
+  }
+  document.querySelectorAll(".navbtn").forEach(function(btn){
+    btn.addEventListener("click", function(){ goto(btn.getAttribute("data-view")); });
+  });
+  document.querySelectorAll("[data-goto]").forEach(function(btn){
+    btn.addEventListener("click", function(){ goto(btn.getAttribute("data-goto")); });
+  });
+
+  /* ---------- relógio / data no topo ---------- */
+  function updateTopbarDate(){
+    document.getElementById("topbar-date").textContent = formatWeekdayLong(new Date().toISOString());
+  }
+
+  /* ================= LOCK / SENHA (dot pads reutilizáveis) ================= */
+  function createPasscodePad(dotsEl, padEl, opts){
+    opts = opts || {};
+    var value = "";
+    function update(){
+      var dots = dotsEl.querySelectorAll(".dot");
+      dots.forEach(function(d,i){ d.classList.toggle("filled", i < value.length); });
+    }
+    function reset(){ value=""; dotsEl.classList.remove("error"); update(); }
+    function press(d){
+      if(value.length>=4) return;
+      value += d;
+      update();
+      if(value.length===4){
+        if(value===state.password){
+          setTimeout(function(){ var cb = opts.onSuccess; reset(); if(cb) cb(); }, 130);
+        } else {
+          dotsEl.classList.add("shake","error");
+          setTimeout(function(){ dotsEl.classList.remove("shake"); reset(); if(opts.onFail) opts.onFail(); }, 480);
+        }
+      }
+    }
+    padEl.querySelectorAll("button[data-d]").forEach(function(btn){
+      btn.addEventListener("click", function(){ press(btn.getAttribute("data-d")); });
+    });
+    var backBtn = padEl.querySelector('[data-action="back"]');
+    if(backBtn) backBtn.addEventListener("click", function(){ value = value.slice(0,-1); update(); });
+    var clearBtn = padEl.querySelector('[data-action="clear"]');
+    if(clearBtn) clearBtn.addEventListener("click", reset);
+    var cancelBtn = padEl.querySelector('[data-action="cancel"]');
+    if(cancelBtn) cancelBtn.addEventListener("click", function(){ reset(); if(opts.onCancel) opts.onCancel(); });
+    return { reset: reset };
+  }
+
+  var lockPad = createPasscodePad(
+    document.getElementById("lock-dots"),
+    document.getElementById("lock-pad"),
+    { onSuccess: function(){
+        document.getElementById("lock-screen").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        updateTopbarDate();
+        goto("lancar");
+      }
+    }
+  );
+
+  document.getElementById("btn-lock-app").addEventListener("click", function(){
+    document.getElementById("app").classList.add("hidden");
+    document.getElementById("lock-screen").classList.remove("hidden");
+  });
+
+  /* password modal genérico, usado para proteger edição/exclusão */
+  var pwModal = document.getElementById("modal-password");
+  var pendingPwAction = null;
+  var pwPad = createPasscodePad(
+    document.getElementById("pw-dots"),
+    document.getElementById("pw-pad"),
+    {
+      onSuccess: function(){
+        pwModal.classList.add("hidden");
+        var action = pendingPwAction; pendingPwAction = null;
+        if(action) action();
+      },
+      onCancel: function(){ pwModal.classList.add("hidden"); pendingPwAction = null; }
+    }
+  );
+  function requestPassword(action, subtitle){
+    pendingPwAction = action;
+    document.getElementById("pw-sub").textContent = subtitle || "Necessária para confirmar esta ação";
+    pwModal.classList.remove("hidden");
+  }
+
+  /* ---------- trocar senha ---------- */
+  function createDigitCollector(dotsEl, padEl, opts){
+    opts = opts || {};
+    var value = "";
+    function update(){ dotsEl.querySelectorAll(".dot").forEach(function(d,i){ d.classList.toggle("filled", i<value.length); }); }
+    function reset(){ value=""; update(); }
+    padEl.querySelectorAll("button[data-d]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if(value.length>=4) return;
+        value += btn.getAttribute("data-d");
+        update();
+        if(value.length===4){
+          var v = value;
+          setTimeout(function(){ reset(); if(opts.onComplete) opts.onComplete(v); }, 120);
+        }
+      });
+    });
+    var back = padEl.querySelector('[data-action="back"]');
+    if(back) back.addEventListener("click", function(){ value = value.slice(0,-1); update(); });
+    var clr = padEl.querySelector('[data-action="clear"]');
+    if(clr) clr.addEventListener("click", reset);
+    var cancel = padEl.querySelector('[data-action="cancel"]');
+    if(cancel) cancel.addEventListener("click", function(){ reset(); if(opts.onCancel) opts.onCancel(); });
+    return { reset: reset };
+  }
+
+  var cpStep = 1;
+  var cpFirstValue = null;
+  function resetChangePasswordFlow(){
+    cpStep = 1; cpFirstValue = null;
+    document.getElementById("cp-title").textContent = "Nova senha";
+    document.getElementById("cp-sub").textContent = "Digite os 4 novos números";
+  }
+  function openChangePasswordModal(){
+    resetChangePasswordFlow();
+    document.getElementById("modal-change-password").classList.remove("hidden");
+  }
+  var cpCollector = createDigitCollector(
+    document.getElementById("cp-dots"),
+    document.getElementById("cp-pad"),
+    {
+      onComplete: function(v){
+        if(cpStep===1){
+          cpFirstValue = v;
+          cpStep = 2;
+          document.getElementById("cp-title").textContent = "Confirme a nova senha";
+          document.getElementById("cp-sub").textContent = "Digite novamente para confirmar";
+        } else {
+          if(v===cpFirstValue){
+            state.password = v;
+            saveState();
+            document.getElementById("modal-change-password").classList.add("hidden");
+            resetChangePasswordFlow();
+            showToast("Senha alterada com sucesso.");
+          } else {
+            var dots = document.getElementById("cp-dots");
+            dots.classList.add("shake","error");
+            setTimeout(function(){ dots.classList.remove("shake","error"); resetChangePasswordFlow(); }, 480);
+          }
+        }
+      },
+      onCancel: function(){
+        document.getElementById("modal-change-password").classList.add("hidden");
+        resetChangePasswordFlow();
+      }
+    }
+  );
+  document.getElementById("btn-change-password").addEventListener("click", function(){
+    requestPassword(function(){ openChangePasswordModal(); }, "Confirme a senha atual para continuar");
+  });
+
+  /* fechar modais genéricos por [data-close] */
+  document.querySelectorAll("[data-close]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.getElementById(btn.getAttribute("data-close")).classList.add("hidden");
+    });
+  });
+
+  /* ================= FUNCIONÁRIOS ================= */
+  function activeEmployees(){ return state.employees.filter(function(e){ return e.active; }); }
+  function findEmployee(id){ return state.employees.filter(function(e){ return e.id===id; })[0]; }
+  function findService(emp, id){ return emp && (emp.services||[]).filter(function(s){ return s.id===id; })[0]; }
+
+  function renderFuncionarios(){
+    var list = document.getElementById("func-list");
+    var count = activeEmployees().length;
+    document.getElementById("func-count").textContent = count + (count===1 ? " ativo" : " ativos");
+    if(state.employees.length===0){
+      list.innerHTML = '<div class="empty-state" style="padding:26px 10px;">Nenhum funcionário cadastrado ainda.</div>';
+      return;
+    }
+    list.innerHTML = state.employees.map(function(emp){
+      var svcCount = (emp.services||[]).length;
+      return (
+        '<div class="emp-row ' + (emp.active ? "" : "inactive") + '" data-emp="' + emp.id + '">' +
+          '<div>' +
+            '<div class="name">' + escapeHtml(emp.name) + '</div>' +
+            '<div class="pct">' + emp.pct.toString().replace(".",",") + '% de comissão' + (svcCount ? ' · ' + svcCount + ' serviço' + (svcCount>1?'s':'') : '') + '</div>' +
+          '</div>' +
+          '<div class="right">' +
+            '<button class="row-icon-btn" data-action="edit-emp" data-id="' + emp.id + '" title="Editar">✎</button>' +
+            '<button class="row-icon-btn danger" data-action="del-emp" data-id="' + emp.id + '" title="Excluir">🗑</button>' +
+            '<button class="switch ' + (emp.active ? "on" : "") + '" data-action="toggle-emp" data-id="' + emp.id + '"></button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    list.querySelectorAll('[data-action="toggle-emp"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var emp = findEmployee(btn.getAttribute("data-id"));
+        emp.active = !emp.active;
+        saveState(); renderFuncionarios();
+      });
+    });
+    list.querySelectorAll('[data-action="edit-emp"]').forEach(function(btn){
+      btn.addEventListener("click", function(){ openEmployeeModal(findEmployee(btn.getAttribute("data-id"))); });
+    });
+    list.querySelectorAll('[data-action="del-emp"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.getAttribute("data-id");
+        requestPassword(function(){
+          state.employees = state.employees.filter(function(e){ return e.id!==id; });
+          saveState(); renderFuncionarios();
+          showToast("Funcionário excluído.");
+        }, "Senha necessária para excluir funcionário");
+      });
+    });
+  }
+
+  /* --- editor de serviços dentro do modal de funcionário --- */
+  var tempServices = [];
+  function renderServiceRows(){
+    var wrap = document.getElementById("ae-services-list");
+    if(tempServices.length===0){
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--ledger-2);opacity:.65;padding:4px 0;">Nenhum serviço cadastrado ainda.</div>';
+      return;
+    }
+    wrap.innerHTML = tempServices.map(function(s,i){
+      return (
+        '<div class="service-row" data-idx="' + i + '">' +
+          '<input type="text" class="svc-name" placeholder="Nome do serviço" value="' + escapeHtml(s.name||"") + '">' +
+          '<input type="number" class="svc-value" placeholder="R$ opcional" step="0.01" min="0" value="' + (s.value!=null?s.value:"") + '">' +
+          '<button type="button" class="row-icon-btn danger" data-action="rm-svc" data-idx="' + i + '">🗑</button>' +
+        '</div>'
+      );
+    }).join("");
+    wrap.querySelectorAll('[data-action="rm-svc"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        syncServiceRowsFromDom();
+        var idx = parseInt(btn.getAttribute("data-idx"),10);
+        tempServices.splice(idx,1);
+        renderServiceRows();
+      });
+    });
+  }
+  function syncServiceRowsFromDom(){
+    document.querySelectorAll("#ae-services-list .service-row").forEach(function(row){
+      var idx = parseInt(row.getAttribute("data-idx"),10);
+      if(!tempServices[idx]) return;
+      tempServices[idx].name = row.querySelector(".svc-name").value;
+      var vr = row.querySelector(".svc-value").value;
+      tempServices[idx].value = vr==="" ? null : parseFloat(vr);
+    });
+  }
+  document.getElementById("ae-add-service").addEventListener("click", function(){
+    syncServiceRowsFromDom();
+    tempServices.push({ id: uid(), name:"", value:null });
+    renderServiceRows();
+  });
+
+  var editingEmployeeId = null;
+  function openEmployeeModal(emp){
+    editingEmployeeId = emp ? emp.id : null;
+    document.getElementById("ae-title").textContent = emp ? "Editar funcionário" : "Novo funcionário";
+    document.getElementById("ae-name").value = emp ? emp.name : "";
+    document.getElementById("ae-pct").value = emp ? emp.pct : "";
+    tempServices = (emp && emp.services) ? emp.services.map(function(s){ return { id:s.id, name:s.name, value:s.value }; }) : [];
+    renderServiceRows();
+    document.getElementById("modal-add-employee").classList.remove("hidden");
+  }
+  document.getElementById("btn-add-employee").addEventListener("click", function(){ openEmployeeModal(null); });
+  document.getElementById("ae-save").addEventListener("click", function(){
+    var name = document.getElementById("ae-name").value.trim();
+    var pct = parseFloat(document.getElementById("ae-pct").value);
+    if(!name){ showToast("Informe o nome do funcionário."); return; }
+    if(isNaN(pct) || pct<0 || pct>100){ showToast("Informe uma % de comissão válida (0–100)."); return; }
+    syncServiceRowsFromDom();
+    var finalServices = tempServices
+      .filter(function(s){ return s.name && s.name.trim()!==""; })
+      .map(function(s){ return { id:s.id, name:s.name.trim(), value:(s.value==null||isNaN(s.value)) ? null : s.value }; });
+    if(editingEmployeeId){
+      var emp = findEmployee(editingEmployeeId);
+      emp.name = name; emp.pct = pct; emp.services = finalServices;
+    } else {
+      state.employees.push({ id: uid(), name: name, pct: pct, active: true, services: finalServices, createdAt: new Date().toISOString() });
+    }
+    saveState();
+    document.getElementById("modal-add-employee").classList.add("hidden");
+    renderFuncionarios();
+    renderLancarChips();
+    showToast("Funcionário salvo.");
+  });
+
+  /* ================= LANÇAR ================= */
+  var selectedEmployeeId = null;
+  var selectedServiceIds = [];
+  var kpBuffer = ""; // buffer de centavos digitados
+
+  function renderLancarChips(){
+    var chips = document.getElementById("lancar-chips");
+    var emps = activeEmployees();
+    var emptyState = document.getElementById("lancar-empty-state");
+    var content = document.getElementById("lancar-content");
+    if(emps.length===0){
+      chips.innerHTML = "";
+      emptyState.classList.remove("hidden");
+      content.classList.add("hidden");
+      return;
+    }
+    emptyState.classList.add("hidden");
+    content.classList.remove("hidden");
+    if(!selectedEmployeeId || !emps.some(function(e){ return e.id===selectedEmployeeId; })){
+      selectedEmployeeId = emps[0].id;
+    }
+    chips.innerHTML = emps.map(function(e){
+      return '<button class="chip ' + (e.id===selectedEmployeeId?"active":"") + '" data-id="' + e.id + '">' + escapeHtml(e.name) + '</button>';
+    }).join("");
+    chips.querySelectorAll(".chip").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        selectedEmployeeId = btn.getAttribute("data-id");
+        kpBuffer = "";
+        selectedServiceIds = [];
+        renderLancar();
+      });
+    });
+  }
+
+  function renderServiceChips(){
+    var wrap = document.getElementById("service-chips-wrap");
+    var row = document.getElementById("service-chips");
+    var emp = findEmployee(selectedEmployeeId);
+    var services = (emp && emp.services) || [];
+    if(services.length===0){ wrap.classList.add("hidden"); row.innerHTML=""; return; }
+    wrap.classList.remove("hidden");
+    var html = services.map(function(s){
+      var active = selectedServiceIds.indexOf(s.id)>=0;
+      var priceTxt = s.value!=null ? " · " + formatCurrency(s.value) : "";
+      return '<button class="chip ' + (active?"active":"") + '" data-svc="' + s.id + '">' + escapeHtml(s.name) + priceTxt + '</button>';
+    }).join("");
+    var outroActive = selectedServiceIds.length===0;
+    html += '<button class="chip ' + (outroActive?"active":"") + '" data-svc="outro">Outro</button>';
+    row.innerHTML = html;
+    row.querySelectorAll("[data-svc]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var svcId = btn.getAttribute("data-svc");
+        if(svcId==="outro"){
+          selectedServiceIds = [];
+        } else {
+          var idx = selectedServiceIds.indexOf(svcId);
+          if(idx>=0) selectedServiceIds.splice(idx,1); else selectedServiceIds.push(svcId);
+        }
+        recomputeBufferFromServices();
+        renderServiceChips();
+        renderKeypadDisplay();
+      });
+    });
+  }
+  function recomputeBufferFromServices(){
+    var emp = findEmployee(selectedEmployeeId);
+    if(!emp) return;
+    var sum = 0, any = false;
+    selectedServiceIds.forEach(function(id){
+      var s = findService(emp, id);
+      if(s && s.value!=null && !isNaN(s.value)){ sum += s.value; any = true; }
+    });
+    if(any){ kpBuffer = Math.round(sum*100).toString(); }
+  }
+
+  function pendingEntriesFor(empId, dateKey){
+    return state.entries.filter(function(en){
+      return en.employeeId===empId && !en.closed && toDateKey(en.createdAt)===dateKey;
+    });
+  }
+  function allTodayEntriesFor(empId){
+    var dk = todayKey();
+    return state.entries.filter(function(en){ return en.employeeId===empId && toDateKey(en.createdAt)===dk; })
+      .sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); });
+  }
+
+  function renderKeypadDisplay(){
+    var cents = parseInt(kpBuffer || "0", 10);
+    document.getElementById("keypad-display").textContent = formatCurrency(cents/100);
+  }
+
+  function renderLancar(){
+    renderLancarChips();
+    if(!selectedEmployeeId) return;
+    var emp = findEmployee(selectedEmployeeId);
+    if(!emp) return;
+    renderServiceChips();
+    document.getElementById("lancar-emp-name").textContent = emp.name;
+    var pending = pendingEntriesFor(emp.id, todayKey());
+    var total = pending.reduce(function(s,e){ return s + e.amount; }, 0);
+    document.getElementById("lancar-total").textContent = formatCurrency(total);
+    renderKeypadDisplay();
+
+    var list = document.getElementById("entry-list");
+    var todays = allTodayEntriesFor(emp.id);
+    if(todays.length===0){
+      list.innerHTML = '<div class="empty-state" style="padding:20px 8px;">Nenhum lançamento hoje ainda.</div>';
+      return;
+    }
+    list.innerHTML = todays.map(function(en){
+      var svcLine = (en.services && en.services.length) ? '<div class="svc-note">' + escapeHtml(en.services.join(", ")) + '</div>' : "";
+      if(en.closed){
+        return (
+          '<div class="entry-row">' +
+            '<div class="meta"><div class="toprow"><span class="time">' + formatTimeBR(en.createdAt) + '</span>' +
+              '<span class="lock-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg>fechado</span></div>' + svcLine + '</div>' +
+            '<div class="amt">' + formatCurrency(en.amount) + '</div>' +
+          '</div>'
+        );
+      }
+      return (
+        '<div class="entry-row">' +
+          '<div class="meta"><div class="toprow"><span class="time">' + formatTimeBR(en.createdAt) + '</span></div>' + svcLine + '</div>' +
+          '<div class="amt">' + formatCurrency(en.amount) + '</div>' +
+          '<div class="actions">' +
+            '<button class="row-icon-btn" data-action="edit-entry" data-id="' + en.id + '" title="Editar">✎</button>' +
+            '<button class="row-icon-btn danger" data-action="del-entry" data-id="' + en.id + '" title="Excluir">🗑</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    list.querySelectorAll('[data-action="edit-entry"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.getAttribute("data-id");
+        requestPassword(function(){ openEditEntry(id); }, "Senha necessária para editar lançamento");
+      });
+    });
+    list.querySelectorAll('[data-action="del-entry"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.getAttribute("data-id");
+        requestPassword(function(){
+          state.entries = state.entries.filter(function(e){ return e.id!==id; });
+          saveState(); renderLancar();
+          showToast("Lançamento excluído.");
+        }, "Senha necessária para excluir lançamento");
+      });
+    });
+  }
+
+  document.getElementById("keypad").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button");
+    if(!btn) return;
+    var d = btn.getAttribute("data-d");
+    if(d!==null){
+      if(kpBuffer.length>=9) return;
+      kpBuffer += d;
+      renderKeypadDisplay();
+      return;
+    }
+    var action = btn.getAttribute("data-action");
+    if(action==="back") kpBuffer = kpBuffer.slice(0,-1);
+    if(action==="clear") kpBuffer = "";
+    renderKeypadDisplay();
+  });
+
+  document.getElementById("btn-add-entry").addEventListener("click", function(){
+    var cents = parseInt(kpBuffer || "0", 10);
+    if(cents<=0){ showToast("Digite um valor antes de adicionar."); return; }
+    if(!selectedEmployeeId){ showToast("Selecione um funcionário."); return; }
+    var emp = findEmployee(selectedEmployeeId);
+    var serviceNames = selectedServiceIds.map(function(id){ var s = findService(emp,id); return s ? s.name : null; }).filter(Boolean);
+    state.entries.push({
+      id: uid(), employeeId: selectedEmployeeId, amount: cents/100,
+      createdAt: new Date().toISOString(), closed: false, fechamentoId: null,
+      services: serviceNames
+    });
+    saveState();
+    kpBuffer = "";
+    selectedServiceIds = [];
+    renderLancar();
+    showToast("Lançamento adicionado.");
+  });
+
+  var editingEntryId = null;
+  function openEditEntry(id){
+    editingEntryId = id;
+    var entry = state.entries.filter(function(e){ return e.id===id; })[0];
+    document.getElementById("ee-value").value = entry.amount.toFixed(2).replace(".",",");
+    document.getElementById("modal-edit-entry").classList.remove("hidden");
+  }
+  document.getElementById("ee-save").addEventListener("click", function(){
+    var raw = document.getElementById("ee-value").value.replace(/\./g,"").replace(",",".");
+    var val = parseFloat(raw);
+    if(isNaN(val) || val<=0){ showToast("Valor inválido."); return; }
+    var entry = state.entries.filter(function(e){ return e.id===editingEntryId; })[0];
+    entry.amount = val;
+    saveState();
+    document.getElementById("modal-edit-entry").classList.add("hidden");
+    renderLancar();
+    showToast("Lançamento atualizado.");
+  });
+  document.getElementById("ee-delete").addEventListener("click", function(){
+    state.entries = state.entries.filter(function(e){ return e.id!==editingEntryId; });
+    saveState();
+    document.getElementById("modal-edit-entry").classList.add("hidden");
+    renderLancar();
+    showToast("Lançamento excluído.");
+  });
+
+  /* ================= FECHAR ================= */
+  function renderFechar(){
+    document.getElementById("fechar-date").textContent = formatDateBR(new Date().toISOString());
+    var dk = todayKey();
+    var pendingWrap = document.getElementById("fechar-pending");
+    var groups = activeEmployees().map(function(emp){
+      var pend = pendingEntriesFor(emp.id, dk);
+      var sum = pend.reduce(function(s,e){ return s+e.amount; }, 0);
+      return { emp: emp, sum: sum, count: pend.length };
+    }).filter(function(g){ return g.sum>0; });
+
+    if(groups.length===0){
+      pendingWrap.innerHTML = '<div class="empty-state">Nenhum valor pendente para fechar no momento.</div>';
+    } else {
+      pendingWrap.innerHTML = groups.map(function(g){
+        return (
+          '<div class="card close-card">' +
+            '<div><div class="name">' + escapeHtml(g.emp.name) + '</div>' +
+            '<div class="sub">' + g.count + ' lançamento' + (g.count>1?"s":"") + ' · ' + g.emp.pct.toString().replace(".",",") + '% padrão</div></div>' +
+            '<div style="display:flex;align-items:center;">' +
+              '<span class="sum">' + formatCurrency(g.sum) + '</span>' +
+              '<button class="btn btn-primary" data-action="close-emp" data-id="' + g.emp.id + '">Fechar</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join("");
+      pendingWrap.querySelectorAll('[data-action="close-emp"]').forEach(function(btn){
+        btn.addEventListener("click", function(){ openFecharModal(btn.getAttribute("data-id")); });
+      });
+    }
+
+    var closedToday = state.fechamentos.filter(function(f){ return toDateKey(f.createdAt)===dk; })
+      .sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
+    var closedWrap = document.getElementById("fechar-closed-wrap");
+    var closedList = document.getElementById("fechar-closed");
+    if(closedToday.length===0){
+      closedWrap.classList.add("hidden");
+    } else {
+      closedWrap.classList.remove("hidden");
+      closedList.innerHTML = closedToday.map(function(f){
+        return (
+          '<div class="mini-receipt" data-action="view-fechamento" data-id="' + f.id + '">' +
+            '<div><div class="name">' + escapeHtml(f.employeeName) + '</div>' +
+            '<div class="figs">' + formatTimeBR(f.createdAt) + ' · bruto ' + formatCurrency(f.bruto) + '</div></div>' +
+            '<div class="lock-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M7 10V7a5 5 0 0110 0v3"/></svg>fechado</div>' +
+          '</div>'
+        );
+      }).join("");
+      closedList.querySelectorAll('[data-action="view-fechamento"]').forEach(function(row){
+        row.addEventListener("click", function(){ openReceipt(row.getAttribute("data-id")); });
+      });
+    }
+  }
+
+  var fecharTargetEmpId = null;
+  function openFecharModal(empId){
+    fecharTargetEmpId = empId;
+    var emp = findEmployee(empId);
+    var pend = pendingEntriesFor(empId, todayKey());
+    var bruto = pend.reduce(function(s,e){ return s+e.amount; }, 0);
+    document.getElementById("mf-title").textContent = "Fechar dia · " + emp.name;
+    document.getElementById("mf-bruto").textContent = formatCurrency(bruto);
+    document.getElementById("mf-pct").value = emp.pct;
+    updateFecharCalc(bruto);
+    document.getElementById("modal-fechar").classList.remove("hidden");
+  }
+  function updateFecharCalc(bruto){
+    var pct = parseFloat(document.getElementById("mf-pct").value) || 0;
+    var repasse = bruto * (pct/100);
+    var proprietario = bruto - repasse;
+    document.getElementById("mf-repasse").textContent = formatCurrency(repasse);
+    document.getElementById("mf-proprietario").textContent = formatCurrency(proprietario);
+  }
+  document.getElementById("mf-pct").addEventListener("input", function(){
+    var bruto = pendingEntriesFor(fecharTargetEmpId, todayKey()).reduce(function(s,e){ return s+e.amount; }, 0);
+    updateFecharCalc(bruto);
+  });
+  document.getElementById("mf-confirm").addEventListener("click", function(){
+    var emp = findEmployee(fecharTargetEmpId);
+    var pend = pendingEntriesFor(fecharTargetEmpId, todayKey());
+    var bruto = pend.reduce(function(s,e){ return s+e.amount; }, 0);
+    var pct = parseFloat(document.getElementById("mf-pct").value);
+    if(isNaN(pct) || pct<0 || pct>100){ showToast("% de comissão inválida."); return; }
+    if(bruto<=0){ showToast("Não há valores pendentes para este funcionário."); return; }
+    var repasse = bruto * (pct/100);
+    var proprietario = bruto - repasse;
+    var svcSet = {};
+    pend.forEach(function(e){ (e.services||[]).forEach(function(sv){ svcSet[sv]=true; }); });
+    var fechamento = {
+      id: uid(), employeeId: emp.id, employeeName: emp.name, pct: pct,
+      bruto: bruto, repasse: repasse, proprietario: proprietario,
+      createdAt: new Date().toISOString(), entryIds: pend.map(function(e){ return e.id; }),
+      services: Object.keys(svcSet)
+    };
+    state.fechamentos.push(fechamento);
+    pend.forEach(function(e){ e.closed = true; e.fechamentoId = fechamento.id; });
+    saveState();
+    document.getElementById("modal-fechar").classList.add("hidden");
+    renderFechar();
+    renderLancar();
+    openReceipt(fechamento.id);
+    showToast("Fechamento confirmado.");
+  });
+
+  function buildReceiptHtml(f){
+    var svcLine = (f.services && f.services.length) ? '<div class="rline"><span>Serviços</span><span class="right">' + escapeHtml(f.services.join(", ")) + '</span></div>' : "";
+    return (
+      '<div class="perf"></div>' +
+      '<div class="receipt-body">' +
+        '<div class="r-head"><div class="store">CAIXA &amp; COMISSÃO</div><div class="sub">Comprovante de fechamento</div></div>' +
+        '<div class="rline"><span>Funcionário</span><b>' + escapeHtml(f.employeeName) + '</b></div>' +
+        svcLine +
+        '<div class="rline"><span>Data</span><span>' + formatDateBR(f.createdAt) + ' às ' + formatTimeBR(f.createdAt) + '</span></div>' +
+        '<div class="rline dashed"><span>Entrada bruta</span><b>' + formatCurrency(f.bruto) + '</b></div>' +
+        '<div class="rline"><span>% comissão</span><span>' + f.pct.toString().replace(".",",") + '%</span></div>' +
+        '<div class="rline"><span>Repasse comissão</span><b>' + formatCurrency(f.repasse) + '</b></div>' +
+        '<div class="rtotal"><span>Proprietário</span><span>' + formatCurrency(f.proprietario) + '</span></div>' +
+        '<div class="barcode"></div>' +
+        '<div style="text-align:center;"><span class="stamp">CONFERIDO</span></div>' +
+      '</div>' +
+      '<div class="perf bottom"></div>'
+    );
+  }
+  function openReceipt(fechamentoId){
+    var f = state.fechamentos.filter(function(x){ return x.id===fechamentoId; })[0];
+    if(!f) return;
+    document.getElementById("receipt-target").innerHTML = buildReceiptHtml(f);
+    document.getElementById("modal-receipt").classList.remove("hidden");
+  }
+
+  /* ================= HISTÓRICO ================= */
+  var reportType = "owner";
+  var reportDefaultsSet = false;
+
+  function renderHistorico(){
+    var all = state.fechamentos;
+    var totalBruto = all.reduce(function(s,f){ return s+f.bruto; }, 0);
+    var totalRepasse = all.reduce(function(s,f){ return s+f.repasse; }, 0);
+    var totalProp = all.reduce(function(s,f){ return s+f.proprietario; }, 0);
+    var months = {};
+    all.forEach(function(f){ months[toMonthKey(f.createdAt)] = true; });
+    var monthCount = Object.keys(months).length;
+
+    document.getElementById("hist-stats").innerHTML =
+      '<div class="stat-box brass"><div class="num">' + monthCount + '</div><div class="lbl">meses trabalhados</div></div>' +
+      '<div class="stat-box"><div class="num">' + formatCurrency(totalBruto) + '</div><div class="lbl">total bruto</div></div>' +
+      '<div class="stat-box"><div class="num">' + formatCurrency(totalRepasse) + '</div><div class="lbl">total repassado</div></div>' +
+      '<div class="stat-box"><div class="num">' + formatCurrency(totalProp) + '</div><div class="lbl">total proprietário</div></div>';
+
+    var monthsWrap = document.getElementById("hist-months");
+    if(all.length===0){
+      monthsWrap.innerHTML = '<div class="empty-state">Nenhum fechamento registrado ainda.</div>';
+    } else {
+      var byMonth = {};
+      all.forEach(function(f){
+        var mk = toMonthKey(f.createdAt);
+        if(!byMonth[mk]) byMonth[mk] = [];
+        byMonth[mk].push(f);
+      });
+      var monthKeys = Object.keys(byMonth).sort().reverse();
+      monthsWrap.innerHTML = monthKeys.map(function(mk){
+        var items = byMonth[mk];
+        var mb = items.reduce(function(s,f){ return s+f.bruto; }, 0);
+        var mr = items.reduce(function(s,f){ return s+f.repasse; }, 0);
+        var mp = items.reduce(function(s,f){ return s+f.proprietario; }, 0);
+        return (
+          '<div class="card month-card" data-month="' + mk + '">' +
+            '<div class="month-head" data-action="toggle-month">' +
+              '<div><h3>' + formatMonthLabel(mk) + '</h3>' +
+                '<div class="month-totals">' +
+                  '<span>Bruto<b>' + formatCurrency(mb) + '</b></span>' +
+                  '<span>Repasse<b>' + formatCurrency(mr) + '</b></span>' +
+                  '<span>Proprietário<b>' + formatCurrency(mp) + '</b></span>' +
+                '</div>' +
+              '</div>' +
+              '<span class="arrow">▸</span>' +
+            '</div>' +
+            '<div class="month-body hidden"></div>' +
+          '</div>'
+        );
+      }).join("");
+
+      monthsWrap.querySelectorAll(".month-card").forEach(function(card){
+        var head = card.querySelector('[data-action="toggle-month"]');
+        head.addEventListener("click", function(){
+          var body = card.querySelector(".month-body");
+          var arrow = card.querySelector(".arrow");
+          var opening = body.classList.contains("hidden");
+          body.classList.toggle("hidden");
+          arrow.classList.toggle("open", opening);
+          if(opening && !body.dataset.built){
+            body.dataset.built = "1";
+            var mk = card.getAttribute("data-month");
+            body.innerHTML = buildMonthBody(byMonth[mk]);
+            body.querySelectorAll('[data-action="view-fechamento"]').forEach(function(row){
+              row.addEventListener("click", function(){ openReceipt(row.getAttribute("data-id")); });
+            });
+          }
+        });
+      });
+    }
+
+    populateReportEmployeeSelect();
+    if(!reportDefaultsSet){
+      reportDefaultsSet = true;
+      var now = new Date();
+      document.getElementById("rep-date-from").value = now.getFullYear()+"-"+pad(now.getMonth()+1)+"-01";
+      document.getElementById("rep-date-to").value = todayKey();
+    }
+  }
+
+  function buildMonthBody(items){
+    var byDay = {};
+    items.forEach(function(f){
+      var dk = toDateKey(f.createdAt);
+      if(!byDay[dk]) byDay[dk] = [];
+      byDay[dk].push(f);
+    });
+    var dayKeys = Object.keys(byDay).sort().reverse();
+    return dayKeys.map(function(dk){
+      return (
+        '<div class="day-group">' +
+          '<div class="day-label">' + formatDateBR(dk+"T12:00:00") + '</div>' +
+          byDay[dk].sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); }).map(function(f){
+            return (
+              '<div class="mini-receipt" data-action="view-fechamento" data-id="' + f.id + '">' +
+                '<div><div class="name">' + escapeHtml(f.employeeName) + '</div>' +
+                '<div class="figs">' + formatTimeBR(f.createdAt) + ' · ' + f.pct.toString().replace(".",",") + '%</div></div>' +
+                '<div class="figs" style="text-align:right;">bruto ' + formatCurrency(f.bruto) + '<br>propr. ' + formatCurrency(f.proprietario) + '</div>' +
+              '</div>'
+            );
+          }).join("") +
+        '</div>'
+      );
+    }).join("");
+  }
+
+  /* --- relatórios PDF --- */
+  function populateReportEmployeeSelect(){
+    var sel = document.getElementById("rep-emp-select");
+    var current = sel.value;
+    var opts = state.employees.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+    sel.innerHTML = opts.map(function(e){ return '<option value="' + e.id + '">' + escapeHtml(e.name) + '</option>'; }).join("");
+    if(opts.some(function(e){ return e.id===current; })) sel.value = current;
+  }
+  function setReportType(t){
+    reportType = t;
+    document.getElementById("rep-type-owner").className = "btn " + (t==="owner" ? "btn-ledger" : "btn-ghost");
+    document.getElementById("rep-type-emp").className = "btn " + (t==="employee" ? "btn-ledger" : "btn-ghost");
+    document.getElementById("rep-emp-field").classList.toggle("hidden", t!=="employee");
+  }
+  document.getElementById("rep-type-owner").addEventListener("click", function(){ setReportType("owner"); });
+  document.getElementById("rep-type-emp").addEventListener("click", function(){ setReportType("employee"); });
+  setReportType("owner");
+
+  function getJsPdfCtor(){ return (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || null; }
+
+  function generateOwnerPDF(items, from, to){
+    var Ctor = getJsPdfCtor();
+    var doc = new Ctor({ unit:"pt", format:"a4" });
+    var margin = 40;
+    var pageW = doc.internal.pageSize.getWidth();
+    var pageH = doc.internal.pageSize.getHeight();
+    var y = margin;
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(15);
+    doc.text("Relatório de Fechamento - Proprietário", margin, y); y+=20;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
+    doc.text("Período: " + formatDateBR(from+"T12:00:00") + " a " + formatDateBR(to+"T12:00:00"), margin, y); y+=14;
+    var now = new Date();
+    doc.text("Gerado em " + formatDateBR(now.toISOString()) + " às " + formatTimeBR(now.toISOString()), margin, y); y+=22;
+
+    var byEmp = {};
+    items.forEach(function(f){
+      if(!byEmp[f.employeeName]) byEmp[f.employeeName] = { count:0, bruto:0, repasse:0, proprietario:0 };
+      byEmp[f.employeeName].count++;
+      byEmp[f.employeeName].bruto += f.bruto;
+      byEmp[f.employeeName].repasse += f.repasse;
+      byEmp[f.employeeName].proprietario += f.proprietario;
+    });
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(11);
+    doc.text("Resumo por funcionário", margin, y); y+=16;
+    doc.setFontSize(8.5);
+    var sc = [ {x:40,label:"Funcionário"}, {x:190,label:"Fechamentos"}, {x:270,label:"Bruto"}, {x:350,label:"Repasse"}, {x:430,label:"Proprietário"} ];
+    doc.setFont("helvetica","bold");
+    sc.forEach(function(c){ doc.text(c.label, c.x, y); });
+    y+=6; doc.setLineWidth(0.5); doc.line(margin,y,pageW-margin,y); y+=11;
+    doc.setFont("helvetica","normal");
+    Object.keys(byEmp).forEach(function(name){
+      var r = byEmp[name];
+      doc.text(name.slice(0,26), sc[0].x, y);
+      doc.text(String(r.count), sc[1].x, y);
+      doc.text(formatCurrency(r.bruto), sc[2].x, y);
+      doc.text(formatCurrency(r.repasse), sc[3].x, y);
+      doc.text(formatCurrency(r.proprietario), sc[4].x, y);
+      y+=13;
+    });
+
+    var totalBruto = items.reduce(function(s,f){ return s+f.bruto; },0);
+    var totalRepasse = items.reduce(function(s,f){ return s+f.repasse; },0);
+    var totalProp = items.reduce(function(s,f){ return s+f.proprietario; },0);
+    y+=6; doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
+    doc.text("Totais: Bruto " + formatCurrency(totalBruto) + "   Repasse " + formatCurrency(totalRepasse) + "   Proprietário " + formatCurrency(totalProp), margin, y);
+    y += 24;
+
+    doc.setFontSize(11); doc.text("Detalhamento", margin, y); y+=16;
+    var dc = [ {x:40,label:"Data"}, {x:94,label:"Funcionário"}, {x:182,label:"Serviços"}, {x:300,label:"Bruto"}, {x:355,label:"%"}, {x:383,label:"Repasse"}, {x:438,label:"Proprietário"} ];
+    function drawDetailHeader(){
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5);
+      dc.forEach(function(c){ doc.text(c.label, c.x, y); });
+      y+=6; doc.line(margin,y,pageW-margin,y); y+=10;
+      doc.setFont("helvetica","normal");
+    }
+    drawDetailHeader();
+    items.forEach(function(f){
+      if(y > pageH - 60){ doc.addPage(); y = margin; drawDetailHeader(); }
+      doc.text(formatDateBR(f.createdAt), dc[0].x, y);
+      doc.text((f.employeeName||"").slice(0,16), dc[1].x, y);
+      doc.text((f.services&&f.services.length ? f.services.join(", ") : "-").slice(0,22), dc[2].x, y);
+      doc.text(formatCurrency(f.bruto), dc[3].x, y);
+      doc.text(String(f.pct).replace(".",",")+"%", dc[4].x, y);
+      doc.text(formatCurrency(f.repasse), dc[5].x, y);
+      doc.text(formatCurrency(f.proprietario), dc[6].x, y);
+      y += 13;
+    });
+
+    return doc;
+  }
+
+  function generateEmployeePDF(items, emp, from, to){
+    var Ctor = getJsPdfCtor();
+    var doc = new Ctor({ unit:"pt", format:"a4" });
+    var margin = 40;
+    var pageW = doc.internal.pageSize.getWidth();
+    var pageH = doc.internal.pageSize.getHeight();
+    var y = margin;
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(15);
+    doc.text("Comprovante de Pagamento", margin, y); y+=20;
+    doc.setFontSize(12);
+    doc.text(emp.name, margin, y); y+=18;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
+    doc.text("Período: " + formatDateBR(from+"T12:00:00") + " a " + formatDateBR(to+"T12:00:00"), margin, y); y+=14;
+    var now = new Date();
+    doc.text("Gerado em " + formatDateBR(now.toISOString()) + " às " + formatTimeBR(now.toISOString()), margin, y); y+=24;
+
+    var cols = [ {x:40,label:"Data"}, {x:110,label:"Serviço(s)"}, {x:400,label:"Valor recebido"} ];
+    function header(){
+      doc.setFont("helvetica","bold"); doc.setFontSize(9);
+      cols.forEach(function(c){ doc.text(c.label, c.x, y); });
+      y+=6; doc.setLineWidth(0.5); doc.line(margin,y,pageW-margin,y); y+=11;
+      doc.setFont("helvetica","normal");
+    }
+    header();
+    var total = 0;
+    items.forEach(function(f){
+      if(y > pageH-60){ doc.addPage(); y=margin; header(); }
+      doc.text(formatDateBR(f.createdAt), cols[0].x, y);
+      doc.text((f.services&&f.services.length ? f.services.join(", ") : "-").slice(0,48), cols[1].x, y);
+      doc.text(formatCurrency(f.repasse), cols[2].x, y);
+      total += f.repasse;
+      y += 14;
+    });
+    y += 12;
+    doc.setFont("helvetica","bold"); doc.setFontSize(11);
+    doc.text("Total recebido no período: " + formatCurrency(total), margin, y);
+    return doc;
+  }
+
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+  function outputPdf(doc, filename){
+    try{
+      var blob = doc.output("blob");
+      if(navigator.canShare && window.File){
+        try{
+          var file = new File([blob], filename, { type:"application/pdf" });
+          if(navigator.canShare({ files:[file] })){
+            navigator.share({ files:[file], title:filename }).then(function(){
+              showToast("PDF compartilhado.");
+            }).catch(function(){ downloadBlob(blob, filename); showToast("PDF baixado."); });
+            return;
+          }
+        }catch(e){ /* compartilhamento de arquivo não suportado, cai para download */ }
+      }
+      downloadBlob(blob, filename);
+      showToast("PDF baixado.");
+    }catch(e){
+      console.error(e);
+      showToast("Não foi possível gerar o PDF.");
+    }
+  }
+
+  document.getElementById("rep-generate").addEventListener("click", function(){
+    var Ctor = getJsPdfCtor();
+    if(!Ctor){ showToast("PDF indisponível agora — verifique a conexão com a internet e tente novamente."); return; }
+    var from = document.getElementById("rep-date-from").value;
+    var to = document.getElementById("rep-date-to").value;
+    if(!from || !to){ showToast("Selecione o período do relatório."); return; }
+    if(from>to){ showToast("A data inicial deve ser antes da data final."); return; }
+    var items = state.fechamentos.filter(function(f){
+      var dk = toDateKey(f.createdAt);
+      return dk>=from && dk<=to;
+    }).sort(function(a,b){ return new Date(a.createdAt)-new Date(b.createdAt); });
+
+    if(reportType==="owner"){
+      if(items.length===0){ showToast("Nenhum fechamento no período selecionado."); return; }
+      var doc = generateOwnerPDF(items, from, to);
+      outputPdf(doc, "relatorio-proprietario-"+from+"-a-"+to+".pdf");
+    } else {
+      var empId = document.getElementById("rep-emp-select").value;
+      var emp = state.employees.filter(function(e){ return e.id===empId; })[0];
+      if(!emp){ showToast("Selecione um funcionário."); return; }
+      var empItems = items.filter(function(f){ return f.employeeId===empId; });
+      if(empItems.length===0){ showToast("Nenhum fechamento desse funcionário no período."); return; }
+      var doc2 = generateEmployeePDF(empItems, emp, from, to);
+      var safeName = emp.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      outputPdf(doc2, "comprovante-"+safeName+"-"+from+"-a-"+to+".pdf");
+    }
+  });
+
+  /* backup export / import */
+  document.getElementById("btn-export").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var d = new Date();
+    a.href = url;
+    a.download = "backup-caixa-comissao-" + d.toISOString().slice(0,10) + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Backup exportado.");
+  });
+  document.getElementById("btn-import").addEventListener("click", function(){
+    document.getElementById("file-import").click();
+  });
+  document.getElementById("file-import").addEventListener("change", function(ev){
+    var file = ev.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(!data || !Array.isArray(data.employees) || !Array.isArray(data.entries) || !Array.isArray(data.fechamentos)){
+          throw new Error("formato inválido");
+        }
+        requestPassword(function(){
+          state = data;
+          normalizeState();
+          renderHistorico(); renderFuncionarios(); renderLancar();
+          showToast("Backup importado com sucesso.");
+        }, "Senha necessária para importar backup (substitui os dados atuais)");
+      }catch(e){
+        showToast("Arquivo de backup inválido.");
+      }
+      ev.target.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  /* ---------- util ---------- */
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
+
+  /* ---------- inicialização ---------- */
+  updateTopbarDate();
+  setInterval(updateTopbarDate, 60000);
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("./sw.js").catch(function(){ /* ok se não estiver hospedado */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
